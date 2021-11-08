@@ -7,120 +7,55 @@
 import sympy as sym
 import numpy as np
 import numba as nb
-from Interpolate import interp 
-from interp import interp_log, log_linear_extrap
 
-mixangle = .4910015 #Weinberg angle; I'll change the name in a bit but right now I want to finish all the Rs
-n = 150
-x_values, w_values = np.polynomial.laguerre.laggauss(n)
-x_valuese, w_valuese = np.polynomial.legendre.leggauss(n)
+Weinberg = .4910015
+x_values, w_values = np.polynomial.laguerre.laggauss(20)
+x_valuese, w_valuese = np.polynomial.legendre.leggauss(20)
+me = 0.511 
+inf = 6457.2 
 
-
-# $$\displaystyle M_1' (\xi) = 2^5 G_F^2 (2 \sin^2 \theta_w + 1)^2 \left( \xi^2 - \frac{2 \sin^2 \theta_w}{2 \sin^2 \theta_w + 1} m_e^2\xi \right)$$
 
 # In[2]:
 
+x, y, p1, E2, E3, q3, q2, GF, stw = sym.symbols('x,y,p1,E2,E3,q3,q2,GF,stw')
 
-a, b, x = sym.symbols('a,b,x')
-GF, stw, me = sym.symbols('GF,stw,me') #we can see that stw is sin of theta_w SQUARED
 M_1prime = 2**5 * GF**2 * (2 * stw + 1)**2 * ( x**2 - 2 * stw / (2 * stw + 1) *me**2*x )
-
-
-# $$\displaystyle  M_1^{(1)} (p_1, E_2, E_3, q_3) = \int_{p_1+E_2-E_3-q_3}^{p_1+E_2-E_3+q_3} dy\, M_1' ( \xi = \frac{1}{2} \left[ (p_1 + E_2)^2 - m_e^2 - y^2 \right] )$$
-
-# In[3]:
-
-
-p1, E2, E3, q3 = sym.symbols('p1,E2,E3,q3')
-y = sym.symbols('y')
-M_1_1 = sym.integrate( M_1prime.subs(x, ((p1+E2)**2-me**2-y**2)/2), (y, p1+E2-E3-q3, p1+E2-E3+q3) )
-M_11 = sym.lambdify((p1,E2,E3,q3),M_1_1.subs([(GF,1.166e-11),(stw,(np.sin(mixangle))**2),(me,0.511)]))
-M11 = nb.jit(M_11,nopython=True)
-
-
-# $$\displaystyle  M_1^{(2)} (p_1, q_2) = \int_{p_1-q_2}^{p_1+q_2} dy\, M_1' ( \xi = \frac{1}{2} \left[ (p_1 + E_2)^2 - m_e^2 - y^2 \right] )$$
-
-# In[4]:
-
-
-q2 = sym.symbols('q2')
-M_1_2 = sym.integrate( M_1prime.subs(x, ((p1+E2)**2-me**2-y**2)/2), (y, p1-q2, p1+q2) )
-M_12 = sym.lambdify((p1,E2,q2),M_1_2.subs([(GF,1.166e-11),(stw,(np.sin(mixangle))**2),(me,0.511)]))
-M12 = nb.jit(M_12,nopython=True)
-
-
-# $$\displaystyle  M_1^{(3)} (p_1, q_2) = \int_{E_3+q_3-p_1-E_2}^{p_1+q_2} dy\, M_1' ( \xi = \frac{1}{2} \left[ (p_1 + E_2)^2 - m_e^2 - y^2 \right] )$$
-
-# In[5]:
-
-
-M_1_3 = sym.integrate( M_1prime.subs(x, ((p1+E2)**2-me**2-y**2)/2), (y, E3+q3-p1-E2, p1+q2) )
-M_13 = sym.lambdify((p1,E2,q2,E3,q3),M_1_3.subs([(GF,1.166e-11),(stw,(np.sin(mixangle))**2),(me,0.511)]))
-M13 = nb.jit(M_13,nopython=True)
-
-
-# $$\displaystyle  M_1^{(4)} (p_1, q_2) = \int_{q_2-p_1}^{p_1+E_2-E_3+q_3} dy\, M_1' ( \xi = \frac{1}{2} \left[ (p_1 + E_2)^2 - m_e^2 - y^2 \right] )$$
-
-# In[6]:
-
-
-M_1_4 = sym.integrate( M_1prime.subs(x, ((p1+E2)**2-me**2-y**2)/2), (y, q2-p1, p1+E2-E3+q3) )
-M_14 = sym.lambdify((p1,E2,q2,E3,q3),M_1_4.subs([(GF,1.166e-11),(stw,(np.sin(mixangle))**2),(me,0.511)]))
-M14 = nb.jit(M_14,nopython=True)
-
-
-# $$\displaystyle M_2' (\xi) = 2^7 G_F^2 \sin^4 \theta_w \left( \xi^2 + \frac{2 \sin^2 \theta_w + 1}{2 \sin^2 \theta_w} m_e^2 \xi \right)$$
-
-# In[7]:
-
-
 M_2prime = 2**7 * GF**2 * (stw)**2 * ( x**2 + (2*stw + 1)/(2*stw) * me**2*x )
 
+M_1_1 = sym.integrate( M_1prime.subs(x, ((p1+E2)**2-me**2-y**2)/2), (y, p1+E2-E3-q3, p1+E2-E3+q3) )
+M_11 = sym.lambdify((p1,E2,E3,q3),M_1_1.subs([(GF,1.166e-11),(stw,(np.sin(Weinberg))**2)]))
+M11 = nb.jit(M_11,nopython=True)
 
-# $$\displaystyle  M_2^{(1)} (p_1, E_2, E_3, q_2) = \int_{p_1-E_3+E_2-q_2}^{p_1-E_3+E_2+q_2} dy\, M_2' ( \xi = \frac{1}{2} \left[ y^2 + m_e^2 - (p_1 - E_3)^2\right] )$$
+M_1_2 = sym.integrate( M_1prime.subs(x, ((p1+E2)**2-me**2-y**2)/2), (y, p1-q2, p1+q2) )
+M_12 = sym.lambdify((p1,E2,q2),M_1_2.subs([(GF,1.166e-11),(stw,(np.sin(Weinberg))**2)]))
+M12 = nb.jit(M_12,nopython=True)
 
-# In[8]:
+M_1_3 = sym.integrate( M_1prime.subs(x, ((p1+E2)**2-me**2-y**2)/2), (y, E3+q3-p1-E2, p1+q2) )
+M_13 = sym.lambdify((p1,E2,q2,E3,q3),M_1_3.subs([(GF,1.166e-11),(stw,(np.sin(Weinberg))**2)]))
+M13 = nb.jit(M_13,nopython=True)
 
+M_1_4 = sym.integrate( M_1prime.subs(x, ((p1+E2)**2-me**2-y**2)/2), (y, q2-p1, p1+E2-E3+q3) )
+M_14 = sym.lambdify((p1,E2,q2,E3,q3),M_1_4.subs([(GF,1.166e-11),(stw,(np.sin(Weinberg))**2)]))
+M14 = nb.jit(M_14,nopython=True)
 
-p1, E2, E3, q2 = sym.symbols('p1,E2,E3,q2')
-y = sym.symbols('y')
 M_2_1 = sym.integrate( M_2prime.subs(x, (y**2 + me**2 - (p1-E3)**2)/2), (y, p1-E3+E2-q2, p1-E3+E2+q2) )
-M_21 = sym.lambdify((p1,E2,E3,q2),M_2_1.subs([(GF,1.166e-11),(stw,(np.sin(mixangle))**2),(me,0.511)]))
+M_21 = sym.lambdify((p1,E2,E3,q2),M_2_1.subs([(GF,1.166e-11),(stw,(np.sin(Weinberg))**2)]))
 M21 = nb.jit(M_21,nopython=True)
 
-
-# $$\displaystyle  M_2^{(2)} (p_1, q_3) = \int_{p_1-q_3}^{p_1+q_3} dy\, M_2' ( \xi = \frac{1}{2} \left[ y^2 + m_e^2 - (p_1 - E_3)^2\right] )$$
-
-# In[9]:
-
-
-q3 = sym.symbols('q3')
 M_2_2 = sym.integrate( M_2prime.subs(x, (y**2 + me**2 - (p1-E3)**2)/2), (y, p1-q3, p1+q3) )
-M_22 = sym.lambdify((p1,E3,q3),M_2_2.subs([(GF,1.166e-11),(stw,(np.sin(mixangle))**2),(me,0.511)]))
+M_22 = sym.lambdify((p1,E3,q3),M_2_2.subs([(GF,1.166e-11),(stw,(np.sin(Weinberg))**2)]))
 M22 = nb.jit(M_22,nopython=True)
 
-
-# $$\displaystyle  M_2^{(3)} (p_1, E_2, q_2, E_3, q_3) = \int_{E_3-p_1-E_2+q_2}^{p_1+q_3} dy\, M_2' ( \xi = \frac{1}{2} \left[ y^2 + m_e^2 - (p_1 - E_3)^2\right] )$$
-
-# In[10]:
-
-
 M_2_3 = sym.integrate( M_2prime.subs(x, (y**2 + me**2 - (p1-E3)**2)/2), (y, E3-p1-E2+q2, p1+q3) )
-M_23 = sym.lambdify((p1,E2,q2,E3,q3),M_2_3.subs([(GF,1.166e-11),(stw,(np.sin(mixangle))**2),(me,0.511)])) #PAY ATTENTION TO THE ORDER of the variables
+M_23 = sym.lambdify((p1,E2,q2,E3,q3),M_2_3.subs([(GF,1.166e-11),(stw,(np.sin(Weinberg))**2)]))
 M23 = nb.jit(M_23,nopython=True)
 
-
-# $$\displaystyle  M_2^{(4)} (p_1, E_2, q_2, E_3, q_3) = \int_{q_3-p_1}^{p_1-E_3+E_2+q_2} dy\, M_2' ( \xi = \frac{1}{2} \left[ y^2 + m_e^2 - (p_1 - E_3)^2\right] )$$
-
-# In[11]:
-
-
 M_2_4 = sym.integrate( M_2prime.subs(x, (y**2 + me**2 - (p1-E3)**2)/2), (y, q3-p1, p1-E3+E2+q2) )
-M_24 = sym.lambdify((p1,E2,q2,E3,q3),M_2_4.subs([(GF,1.166e-11),(stw,(np.sin(mixangle))**2),(me,0.511)])) #PAY ATTENTION TO THE ORDER of the variables
+M_24 = sym.lambdify((p1,E2,q2,E3,q3),M_2_4.subs([(GF,1.166e-11),(stw,(np.sin(Weinberg))**2)])) 
 M24 = nb.jit(M_24,nopython=True)
 
 
-# In[12]:
+# In[3]:
 
 
 @nb.jit(nopython=True)
@@ -129,44 +64,94 @@ def trapezoid(array,dx):
     return total
 
 @nb.jit(nopython=True)
-def fv(p,T):
-    return 1/(np.e**(p/T)+1)
-
-@nb.jit(nopython=True)
 def fe(E,T):
     return 1/(np.e**(E/T)+1)
 
 @nb.jit(nopython=True)
-def Fplus(p1,E2,E3,p4,T):
-    return (1-fv(p1,T))*(1-fe(E2,T))*fe(E3,T)*fv(p4,T)
+def make_q_array(E_arr):
+    q2_arr = E_arr**2 - 0.511**2
+    q_arr = np.sqrt(q2_arr)
+    for i in range(len(q2_arr)):
+        if abs(q2_arr[i]) < 1e-13:
+            q_arr[i] = 0
+        elif q2_arr[i]  < -1e-13:
+            print("Error with q_array",q2_arr[i])
+            q_arr[i] = 0
+    return q_arr
+
+
+# In[4]:
+
 
 @nb.jit(nopython=True)
-def Fminus(p1,E2,E3,p4,T):
-    return fv(p1,T)*fe(E2,T)*(1-fe(E3,T))*(1-fv(p4,T))
+def lin_int(X,x,y): #x is an array of 6 x values, y is an array of 6 y values that correspond w/ x,
+                    #X is the x value we wish to find a corresponding y value for via interpolation
+    P00 = y[0]
+    P11 = y[1]
+    P22 = y[2]
+    P33 = y[3]
+    P44 = y[4]
+    P55 = y[5]
+    
+    P01 = ((X-x[1])*P00 - (X-x[0])*P11)/(x[0]-x[1])
+    P12 = ((X-x[2])*P11 - (X-x[1])*P22)/(x[1]-x[2])
+    P23 = ((X-x[3])*P22 - (X-x[2])*P33)/(x[2]-x[3])
+    P34 = ((X-x[4])*P33 - (X-x[3])*P44)/(x[3]-x[4])
+    P45 = ((X-x[5])*P44 - (X-x[4])*P55)/(x[4]-x[5])
+    
+    P02 = ((X-x[2])*P01 - (X-x[0])*P12)/(x[0]-x[2])
+    P13 = ((X-x[3])*P12 - (X-x[1])*P23)/(x[1]-x[3])
+    P24 = ((X-x[4])*P23 - (X-x[2])*P34)/(x[2]-x[4])
+    P35 = ((X-x[5])*P34 - (X-x[3])*P45)/(x[3]-x[5])
+    
+    P03 = ((X-x[3])*P02 - (X-x[0])*P13)/(x[0]-x[3])
+    P14 = ((X-x[4])*P13 - (X-x[1])*P24)/(x[1]-x[4])
+    P25 = ((X-x[5])*P24 - (X-x[2])*P35)/(x[2]-x[5])
+    
+    P04 = ((X-x[4])*P03 - (X-x[0])*P14)/(x[0]-x[4])
+    P15 = ((X-x[5])*P14 - (X-x[1])*P25)/(x[1]-x[5])
+    
+    P05 = ((X-x[5])*P04 - (X-x[0])*P15)/(x[0]-x[5])
+    Y = P05
+    
+    return Y
+
+##  Only use this if the x-values are boxsize * i
+@nb.jit(nopython=True)
+def interp(p4, bx, logf):
+    p1_arr = np.zeros(len(logf))
+    for i in range(len(logf)):
+        p1_arr[i] = bx * i  
+    
+    j = int(p4/bx)
+    if j >= len(p1_arr):
+        print("Error:  extrapolation required")
+        return 0
+    if j < 3:
+        return lin_int(p4, p1_arr[:6], logf[:6])
+    elif (j > len(p1_arr) - 4):
+        return lin_int(p4, p1_arr[-6:], logf[-6:])
+    else:
+        return lin_int(p4, p1_arr[j-3:j+3], logf[j-3:j+3])
+    
+@nb.jit(nopython=True)
+def interp_log(p4, bx ,f):
+    return np.exp(interp(p4, bx, np.log(f)))
 
 @nb.jit(nopython=True)
-def check0(plus,minus):
-    return (plus-minus)/(plus+minus)
+def linear_extrap(X,x,y):    
+    return y[0] + (y[1] - y[0])/(x[1] - x[0]) * (X - x[0])
 
+## Note, x and y need to be numpy arrays, should be of length 2
 @nb.jit(nopython=True)
-def make_q_array(Energy_array):
-    q2_array = Energy_array**2 - 0.511**2
-    q_array = np.sqrt(q2_array)
-    for i in range(len(q2_array)):
-        if abs(q2_array[i]) < 1e-13:
-            q_array[i] = 0
-        elif q2_array[i]  < -1e-13:
-            print("Error with q_array",q2_array[i])
-            q_array[i] = 0
-    return q_array
+def log_linear_extrap(X,x,y):
+    return np.exp(linear_extrap(X,x,np.log(y)))
 
 @nb.jit(nopython=True)
 def f_first_last(f, p4_array, boxsize):
     k = max(int(p4_array[-1]/boxsize),int(p4_array[-1]/boxsize+1e-9))
     j = max(int(p4_array[0]/boxsize),int(p4_array[0]/boxsize+1e-9))+1
-    #f_first = 0
-    #f_last = 0
-
+    
     if j<len(f): #these conditions prevent the code from calling an index of f out of f's bounds
         f_first = interp_log(p4_array[0], boxsize, f)
     else:
@@ -178,19 +163,547 @@ def f_first_last(f, p4_array, boxsize):
         
     return f_first, f_last, j, k
 
-'''    
-    if j<len(f): #these conditions prevent the code from calling an index of f out of f's bounds
-        f_first = f[j-1] + ((f[j] - f[j-1])/boxsize)*(p4_array[0] - boxsize*(j-1))
-    if k<len(f)-1:
-        f_last = f[k] + ((f[k+1] - f[k])/boxsize)*(p4_array[-1] - boxsize*k)
-    elif k == len(f)-1:
-        f_last = f[k] + ((0 - f[k])/boxsize)*(p4_array[-1] - boxsize*k)
 
-    return f_first, f_last, j, k    
-'''    
+# In[5]:
 
 
-# In[13]:
+@nb.jit(nopython=True)
+def Blim(p1,E,q,T,f,bx,sub,sup,n):
+    
+    if (sub==1): #it so happens that for R_1, only n matters for B limits, not superscript
+        if (n==1):
+            UL = E
+            LL = me
+        elif (n==2):
+            UL = (1/2)*(2*p1 + E - q + (me**2)/(2*p1 + E - q)) #E2trans
+            LL = E
+        elif (n==3):
+            UL = (1/2)*(2*p1 + E + q + (me**2)/(2*p1 + E + q)) #E1lim
+            LL = (1/2)*(2*p1 + E - q + (me**2)/(2*p1 + E - q)) #E2trans
+        elif (n==4):
+            UL = (1/2)*(2*p1 + E - q + (me**2)/(2*p1 + E - q)) #E2trans
+            LL = me
+        elif (n==5):
+            UL = E
+            LL = (1/2)*(2*p1 + E - q + (me**2)/(2*p1 + E - q)) #E2trans
+        elif (n==6):
+            UL = (1/2)*(2*p1 + E + q + (me**2)/(2*p1 + E + q)) #E1lim
+            LL = E
+        elif (n==7):
+            UL = E
+            LL = (1/2)*(2*p1 + E - q + (me**2)/(2*p1 + E - q)) #E2lim
+        else: #n=8
+            UL = (1/2)*(2*p1 + E + q + (me**2)/(2*p1 + E + q)) #E1lim
+            LL = E
+    else: #sub=2
+        if (n==1):
+            UL = E
+            LL = me
+        elif (n==2):
+            if (sup==1 or sup==2 or sup==3):
+                UL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+                LL = E
+            else: #sup=4
+                UL = bx*len(f)
+                LL = E
+        elif (n==3):
+            if (sup==1 or sup==2 or sup==3):
+                #UL = (1/2)*(E - q - 2*p1 + (me**2)/(E - q - 2*p1)) #E1lim
+                if (E - q - 2*p1)==0:
+                    UL = T*100
+                else:
+                    E1lim = (1/2)*(E - q - 2*p1 + (me**2)/(E - q - 2*p1))
+                    UL = min(E1lim,T*100)
+                LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+            else: #sup=4
+                UL = E
+                LL = me
+        elif (n==4):
+            if (sup==1 or sup==2):
+                UL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+                LL = me
+            elif (sup==3):
+                UL = E
+                LL = me
+            else: #sup=4
+                #UL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+                if (E + q - 2*p1)==0:
+                    UL = T*100
+                else:
+                    E2trans = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1))
+                    UL = min(E2trans,T*100)
+                LL = E
+        elif (n==5):
+            if (sup==1 or sup==2):
+                UL = E
+                LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+            elif (sup==3):
+                UL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+                LL = E
+            else: #sup=4
+                UL = bx*len(f)
+                if (E + q - 2*p1)==0:
+                    LL = T*100
+                else:
+                    E2trans = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1))
+                    LL = min(E2trans,T*100)
+                #LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+        elif (n==6):
+            if (sup==1 or sup==2):
+                #UL = (1/2)*(E - q - 2*p1 + (me**2)/(E - q - 2*p1)) #E1lim
+                if (E - q - 2*p1)==0:
+                    UL = T*100
+                else:
+                    E1lim = (1/2)*(E - q - 2*p1 + (me**2)/(E - q - 2*p1))
+                    UL = min(E1lim,T*100)
+                LL = E
+            elif (sup==3):
+                UL = bx*len(f)
+                LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+            else: #sup=4
+                UL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+                LL = me
+        elif (n==7):
+            if (sup==1):
+                UL = E
+                LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2lim
+            elif (sup==2 or sup==3):
+                UL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+                LL = me
+            else: #sup=4
+                UL = E
+                LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+        elif (n==8):
+            if (sup==1):
+                #UL = (1/2)*(E - q - 2*p1 + (me**2)/(E - q - 2*p1)) #E1lim
+                if (E - q - 2*p1)==0:
+                    UL = T*100
+                else:
+                    E1lim = (1/2)*(E - q - 2*p1 + (me**2)/(E - q - 2*p1))
+                    UL = min(E1lim,T*100)
+                LL = E
+            elif (sup==2 or sup==3):
+                UL = E
+                LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2trans
+            else: #sup=4 
+                UL = bx*len(f)
+                LL = E
+        elif (n==9):
+            if (sup==1 or sup==4):
+                UL = E
+                LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2lim
+            else: #sup=2,3
+                UL = bx*len(f)
+                LL = E
+        elif (n==10):
+            if (sup==1 or sup==4):
+                UL = bx*len(f)
+                LL = E
+            else: #sup=2,3
+                UL = E
+                LL = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)) #E2lim
+        else: #n=11
+            UL = bx*len(f)
+            LL = E
+
+    return UL, LL
+
+
+@nb.jit(nopython=True)
+def Alim(p1,sub,sup,n):
+    
+    if (sub==1):
+        if (sup==1):
+            if (n==1 or n==2 or n==3):
+                UL = np.sqrt(p1**2 + me**2) #E3cut
+                LL = me
+            elif (n==4 or n==5 or n==6):
+                UL = me + (2*p1**2)/(me - 2*p1) #E1cut
+                LL = np.sqrt(p1**2 + me**2) #E3cut
+            else: #n=7,8
+                UL = inf
+                LL = me + (2*p1**2)/(me - 2*p1) #E1cut
+        else: #sup=2
+            if (n==1 or n==2 or n==3):
+                UL = np.sqrt(p1**2 + me**2) #E3cut
+                LL = me
+            else: #n=4,5,6
+                UL = inf
+                LL = np.sqrt(p1**2 + me**2) #E3cut
+    else: #sub=2
+        if (sup==1):
+            if (n==1 or n==2 or n==3):
+                UL = np.sqrt(p1**2 + me**2) #E3cut
+                LL = me
+            elif (n==4 or n==5 or n==6):
+                UL = p1 + me*(p1+me)/(2*p1+me) #E2cut
+                LL = np.sqrt(p1**2 + me**2) #E3cut
+            elif (n==7 or n==8):
+                UL = p1 + (me**2)/(4*p1) #E1cut
+                LL = p1 + me*(p1+me)/(2*p1+me) #E2cut
+            else: #n=9,10
+                UL = inf
+                LL = p1 + (me**2)/(4*p1) #E1cut
+        elif (sup==2):
+            if (n==1 or n==2 or n==3):
+                UL = np.sqrt(p1**2 + me**2) #E3cut
+                LL = me
+            elif (n==4 or n==5 or n==6):
+                UL = p1 + (me**2)/(4*p1) #E1cut
+                LL = np.sqrt(p1**2 + me**2) #E3cut
+            elif (n==7 or n==8 or n==9):
+                UL = p1 + me*(p1+me)/(2*p1+me) #E2cut
+                LL = p1 + (me**2)/(4*p1) #E1cut
+            else: #n=10,11
+                UL = inf
+                LL = p1 + me*(p1+me)/(2*p1+me) #E2cut
+        elif (sup==3):
+            if (n==1 or n==2 or n==3):
+                UL = p1 + (me**2)/(4*p1) #E1cut
+                LL = me
+            elif (n==4 or n==5 or n==6):
+                UL = np.sqrt(p1**2 + me**2) #E3cut
+                LL = p1 + (me**2)/(4*p1) #E1cut
+            elif (n==7 or n==8 or n==9):
+                UL = p1 + me*(p1+me)/(2*p1+me) #E2cut
+                LL = np.sqrt(p1**2 + me**2) #E3cut
+            else: #n=10,11
+                UL = inf
+                LL = p1 + me*(p1+me)/(2*p1+me) #E2cut
+        else: #sup=4
+            if (n==1 or n==2 or n==3):
+                UL = p1 + (me**2)/(4*p1) #E1cut
+                LL = me
+            elif (n==4 or n==5 or n==6):
+                UL = np.sqrt(p1**2 + me**2) #E3cut
+                LL = p1 + (me**2)/(4*p1) #E1cut
+            elif (n==7 or n==8):
+                UL = p1 + me*(p1+me)/(2*p1+me) #E2cut
+                LL = np.sqrt(p1**2 + me**2) #E3cut
+            else: #n=9,10
+                UL = inf
+                LL = p1 + me*(p1+me)/(2*p1+me) #E2cut
+    
+    return UL, LL
+
+@nb.jit(nopython=True)
+def M(p1,E_arr,q_arr,E_val,q_val,sub,sup,n):
+    M_arr = np.zeros(len(E_arr))
+    
+    if (sub==1): #it so happens that for R_1, only n matters for M, not superscript
+        if (n==1 or n==4):
+            for i in range (len(E_arr)):
+                M_arr[i] = M11(p1,E_val,E_arr[i],q_arr[i])
+        elif (n==2):
+            for i in range (len(E_arr)):
+                M_arr[i] = M12(p1,E_val,q_val)
+        elif (n==3 or n==6 or n==8):
+            for i in range (len(E_arr)):
+                M_arr[i] = M13(p1,E_val,q_val,E_arr[i],q_arr[i])
+        else: #n=5,7
+            for i in range (len(E_arr)):
+                M_arr[i] = M14(p1,E_val,q_val,E_arr[i],q_arr[i])
+    else: #sub=2
+        #if (sup==1):
+        if (((sup == 1) and (n==1 or n==4)) or ((sup==2 or sup==3) and (n==1 or n==4 or n==7)) or ((sup==4) and (n==1 or n==3 or n==6))):
+            for i in range (len(E_arr)):
+                M_arr[i] = M21(p1,E_arr[i],E_val,q_arr[i])
+        elif ((sup==1 and n==2) or (sup==2 and n==2) or ((sup==3) and (n==2 or n==5)) or ((sup==4) and (n==2 or n==4))):
+            for i in range (len(E_arr)):
+                M_arr[i] = M22(p1,E_val,q_val)
+        elif (((sup==1) and (n==3 or n==6 or n==8 or n==10)) or ((sup==2 or sup==3) and (n==3 or n==6 or n==9 or n==11)) or ((sup==4) and (n==5 or n==8 or n==10))):
+            for i in range (len(E_arr)):
+                M_arr[i] = M23(p1,E_arr[i],q_arr[i],E_val,q_val)
+        elif (((sup==1) and (n==5 or n==7 or n==9)) or ((sup==2) and (n==5 or n==8 or n==10)) or ((sup==3) and (n==8 or n==10)) or ((sup==4) and (n==7 or n==9))): #n=5,7,9
+            for i in range (len(E_arr)):
+                M_arr[i] = M24(p1,E_arr[i],q_arr[i],E_val,q_val)
+        else:
+            print(sub,sup,n,M_arr[0])
+        #elif (sup==2):
+            #if (n==1 or n==4 or n==7):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M21(p1,E_arr[i],E_val,q_arr[i])
+            #elif (n==2):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M22(p1,E_val,q_val)
+            #elif (n==3 or n==6 or n==9 or n==11):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M23(p1,E_arr[i],q_arr[i],E_val,q_val)
+            #else: #n=5,8,10 
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M24(p1,E_arr[i],q_arr[i],E_val,q_val)
+        #elif (sup==3):
+            #if (n==1 or n==4 or n==7):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M21(p1,E_arr[i],E_val,q_arr[i])
+            #elif (n==2 or n==5):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M22(p1,E_val,q_val)
+            #elif (n==3 or n==6 or n==9 or n==11):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M23(p1,E_arr[i],q_arr[i],E_val,q_val)
+            #else: #n=8,10 
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M24(p1,E_arr[i],q_arr[i],E_val,q_val)
+        #else: #sup=4
+            #if (n==1 or n==3 or n==6):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M21(p1,E_arr[i],E_val,q_arr[i])
+            #elif (n==2 or n==4):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M22(p1,E_val,q_val)
+            #elif (n==5 or n==8 or n==10):
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M23(p1,E_arr[i],q_arr[i],E_val,q_val)
+            #else: #n=7,9 
+            #    for i in range (len(E_arr)):
+            #        M_arr[i] = M24(p1,E_arr[i],q_arr[i],E_val,q_val)
+    return M_arr
+
+
+# In[6]:
+
+
+@nb.jit(nopython=True)
+def B(p1,E_val,T,f,bx,sub,sup,n): #E_val can be either E3 or E2 depending on if its R_1 or R_2
+     
+    q_val = (E_val**2 - .511**2)**(1/2)
+    UL, LL = Blim(p1,E_val,q_val,T,f,bx,sub,sup,n)
+    
+    if (UL<LL):
+        return 0,0
+
+    p4_arr = np.zeros(int((UL-LL)/bx)+2)
+    Fp_arr = np.zeros(len(p4_arr))
+    Fm_arr = np.zeros(len(p4_arr))
+    p1_box = int(np.round(p1/bx,0))
+
+    if (sub==1):
+        for i in range(int((UL-LL)/bx)):
+            p4_arr[i+1] = (int((p1+E_val-UL)/bx)+i+1)*bx
+        p4_arr[0] = p1 + E_val - UL 
+        p4_arr[-1] = p1 + E_val - LL 
+        E_arr = E_val + p1 - p4_arr
+        q_arr = make_q_array(E_arr)
+        M_arr = M(p1,E_arr,q_arr,E_val,q_val,sub,sup,n)
+        
+        for i in range (int((UL-LL)/bx)):
+            if int(p4_arr[i+1]/bx)>=len(f):
+                break #because everything in the arrays below are already zeros so we don't need to set them as zeros
+            f_holder = log_linear_extrap(p4_arr[i+1],np.array([(len(f)-2)*bx,(len(f)-1)*bx]),np.array([f[-2],f[-1]]))
+            Fp_arr[i+1] = (1-f[p1_box])*(1-fe(E_val,T))*fe(E_arr[i+1],T)*f_holder
+            Fm_arr[i+1] = f[p1_box]*fe(E_val,T)*(1-fe(E_arr[i+1],T))*(1-f_holder)
+
+        f_first, f_last, j, k = f_first_last(f, p4_arr, bx)
+        Fp_arr[0] = (1-f[p1_box])*(1-fe(E_val,T))*fe(E_arr[0],T)*f_first
+        Fm_arr[0] = f[p1_box]*fe(E_val,T)*(1-fe(E_arr[0],T))*(1-f_first)
+        Fp_arr[-1] = (1-f[p1_box])*(1-fe(E_val,T))*fe(E_arr[-1],T)*f_last
+        Fm_arr[-1] = f[p1_box]*fe(E_val,T)*(1-fe(E_arr[-1],T))*(1-f_last)
+         
+    else: #sub==2
+        for i in range(int((UL-LL)/bx)):
+            p4_arr[i+1] = (int((p1+LL-E_val)/bx)+i+1)*bx
+        p4_arr[0] = p1 + LL - E_val
+        p4_arr[-1] = p1 + UL - E_val
+        E_arr = E_val + p4_arr - p1
+        q_arr = make_q_array(E_arr)
+        M_arr = M(p1,E_arr,q_arr,E_val,q_val,sub,sup,n)
+    
+        for i in range (int((UL-LL)/bx)):
+            if int(p4_arr[i+1]/bx)>=len(f):
+                break #because everything in the arrays below are already zeros so we don't need to set them as zeros
+            f_holder = log_linear_extrap(p4_arr[i+1],np.array([(len(f)-2)*bx,(len(f)-1)*bx]),np.array([f[-2],f[-1]]))
+            Fp_arr[i+1] = (1-f[p1_box])*(1-fe(E_arr[i+1],T))*fe(E_val,T)*f_holder
+            Fm_arr[i+1] = f[p1_box]*fe(E_arr[i+1],T)*(1-fe(E_val,T))*(1-f_holder)
+    
+        f_first, f_last, j, k = f_first_last(f, p4_arr, bx)
+        Fp_arr[0] = (1-f[p1_box])*(1-fe(E_arr[0],T))*fe(E_val,T)*f_first
+        Fm_arr[0] = f[p1_box]*fe(E_arr[0],T)*(1-fe(E_val,T))*(1-f_first)
+        Fp_arr[-1] = (1-f[p1_box])*(1-fe(E_arr[-1],T))*fe(E_val,T)*f_last
+        Fm_arr[-1] = f[p1_box]*fe(E_arr[-1],T)*(1-fe(E_val,T))*(1-f_last)
+    
+    igrndp_arr = Fp_arr*M_arr
+    igrndm_arr = Fm_arr*M_arr
+    igrlp = trapezoid(igrndp_arr[1:-1],bx)
+    igrlm = trapezoid(igrndm_arr[1:-1],bx)
+    igrlp = igrlp + igrndp_arr[0]*(bx*j - p4_arr[0]) + igrndp_arr[-1]*(p4_arr[-1] - bx*k)
+    igrlm = igrlm + igrndm_arr[0]*(bx*j - p4_arr[0]) + igrndm_arr[-1]*(p4_arr[-1] - bx*k)
+    return igrlp, igrlm
+
+@nb.jit(nopython=True)
+def A(p1,T,f,bx,sub,sup,n): 
+    igrlp = 0.0
+    igrlm = 0.0
+    UL, LL = Alim(p1,sub,sup,n)
+    if (UL == inf):
+        E_arr = x_values+LL #could be E3 or E2 depending on if its R_1 or R_2
+        for i in range (len(E_arr)):
+            Bp, Bm = B(p1,E_arr[i],T,f,bx,sub,sup,n)
+            igrlp = igrlp + (np.e**x_values[i])*w_values[i]*Bp
+            igrlm = igrlm + (np.e**x_values[i])*w_values[i]*Bm     
+    else:  
+        E_arr = ((UL-LL)/2)*x_valuese + (UL+LL)/2 #could be E3 or E2 depending on if its R_1 or R_2
+        for i in range(len(E_arr)):
+            Bp, Bm = B(p1,E_arr[i],T,f,bx,sub,sup,n)
+            igrlp = igrlp + w_valuese[i]*((UL-LL)/2)*Bp
+            igrlm = igrlm + w_valuese[i]*((UL-LL)/2)*Bm
+    return np.array([igrlp, igrlm])
+
+
+# In[7]:
+
+
+@nb.jit(nopython=True)
+def R11R21(p1,T,f,bx):
+    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
+    
+    A11_1 = A(p1,T,f,bx,1,1,1)
+    A11_2 = A(p1,T,f,bx,1,1,2)
+    A11_3 = A(p1,T,f,bx,1,1,3)
+    A11_4 = A(p1,T,f,bx,1,1,4)
+    A11_5 = A(p1,T,f,bx,1,1,5)
+    A11_6 = A(p1,T,f,bx,1,1,6)
+    A11_7 = A(p1,T,f,bx,1,1,7)
+    A11_8 = A(p1,T,f,bx,1,1,8)
+    
+    A21_1 = A(p1,T,f,bx,2,1,1)
+    A21_2 = A(p1,T,f,bx,2,1,2)
+    A21_3 = A(p1,T,f,bx,2,1,3)
+    A21_4 = A(p1,T,f,bx,2,1,4)
+    A21_5 = A(p1,T,f,bx,2,1,5)
+    A21_6 = A(p1,T,f,bx,2,1,6)
+    A21_7 = A(p1,T,f,bx,2,1,7)
+    A21_8 = A(p1,T,f,bx,2,1,8)
+    A21_9 = A(p1,T,f,bx,2,1,9)
+    A21_10 = A(p1,T,f,bx,2,1,10)
+    
+    integral11 = A11_1 + A11_2 + A11_3 + A11_4 + A11_5 + A11_6 + A11_7 + A11_8 
+    integral21 = A21_1 + A21_2 + A21_3 + A21_4 + A21_5 + A21_6 + A21_7 + A21_8 + A21_9 + A21_10
+    integral = integral11 + integral21
+    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
+        return 0
+    else:
+        net = coefficient*(integral[0]-integral[1])
+        return net
+
+@nb.jit(nopython=True)
+def R11R22(p1,T,f,bx):
+    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
+    
+    A11_1 = A(p1,T,f,bx,1,1,1)
+    A11_2 = A(p1,T,f,bx,1,1,2)
+    A11_3 = A(p1,T,f,bx,1,1,3)
+    A11_4 = A(p1,T,f,bx,1,1,4)
+    A11_5 = A(p1,T,f,bx,1,1,5)
+    A11_6 = A(p1,T,f,bx,1,1,6)
+    A11_7 = A(p1,T,f,bx,1,1,7)
+    A11_8 = A(p1,T,f,bx,1,1,8)
+    
+    A22_1 = A(p1,T,f,bx,2,2,1)
+    A22_2 = A(p1,T,f,bx,2,2,2)
+    A22_3 = A(p1,T,f,bx,2,2,3)
+    A22_4 = A(p1,T,f,bx,2,2,4)
+    A22_5 = A(p1,T,f,bx,2,2,5)
+    A22_6 = A(p1,T,f,bx,2,2,6)
+    A22_7 = A(p1,T,f,bx,2,2,7)
+    A22_8 = A(p1,T,f,bx,2,2,8)
+    A22_9 = A(p1,T,f,bx,2,2,9)
+    A22_10 = A(p1,T,f,bx,2,2,10)
+    A22_11 = A(p1,T,f,bx,2,2,11)
+    
+    integral11 = A11_1 + A11_2 + A11_3 + A11_4 + A11_5 + A11_6 + A11_7 + A11_8 
+    integral22 = A22_1 + A22_2 + A22_3 + A22_4 + A22_5 + A22_6 + A22_7 + A22_8 + A22_9 + A22_10 + A22_11
+    integral = integral11 + integral22
+    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
+        return 0
+    else:
+        net = coefficient*(integral[0]-integral[1])
+        return net
+
+@nb.jit(nopython=True)
+def R11R23(p1,T,f,bx):
+    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
+    
+    A11_1 = A(p1,T,f,bx,1,1,1)
+    A11_2 = A(p1,T,f,bx,1,1,2)
+    A11_3 = A(p1,T,f,bx,1,1,3)
+    A11_4 = A(p1,T,f,bx,1,1,4)
+    A11_5 = A(p1,T,f,bx,1,1,5)
+    A11_6 = A(p1,T,f,bx,1,1,6)
+    A11_7 = A(p1,T,f,bx,1,1,7)
+    A11_8 = A(p1,T,f,bx,1,1,8)
+    
+    A23_1 = A(p1,T,f,bx,2,3,1)
+    A23_2 = A(p1,T,f,bx,2,3,2)
+    A23_3 = A(p1,T,f,bx,2,3,3)
+    A23_4 = A(p1,T,f,bx,2,3,4)
+    A23_5 = A(p1,T,f,bx,2,3,5)
+    A23_6 = A(p1,T,f,bx,2,3,6)
+    A23_7 = A(p1,T,f,bx,2,3,7)
+    A23_8 = A(p1,T,f,bx,2,3,8)
+    A23_9 = A(p1,T,f,bx,2,3,9)
+    A23_10 = A(p1,T,f,bx,2,3,10)
+    A23_11 = A(p1,T,f,bx,2,3,11)
+    
+    integral11 = A11_1 + A11_2 + A11_3 + A11_4 + A11_5 + A11_6 + A11_7 + A11_8 
+    integral23 = A23_1 + A23_2 + A23_3 + A23_4 + A23_5 + A23_6 + A23_7 + A23_8 + A23_9 + A23_10 + A23_11
+    integral = integral11 + integral23
+    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
+        return 0
+    else:
+        net = coefficient*(integral[0]-integral[1])
+        return net
+
+@nb.jit(nopython=True)
+def R12R24(p1,T,f,bx):
+    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
+    
+    A12_1 = A(p1,T,f,bx,1,2,1)
+    A12_2 = A(p1,T,f,bx,1,2,2)
+    A12_3 = A(p1,T,f,bx,1,2,3)
+    A12_4 = A(p1,T,f,bx,1,2,4)
+    A12_5 = A(p1,T,f,bx,1,2,5)
+    A12_6 = A(p1,T,f,bx,1,2,6)
+    
+    A24_1 = A(p1,T,f,bx,2,4,1)
+    A24_2 = A(p1,T,f,bx,2,4,2)
+    A24_3 = A(p1,T,f,bx,2,4,3)
+    A24_4 = A(p1,T,f,bx,2,4,4)
+    A24_5 = A(p1,T,f,bx,2,4,5)
+    A24_6 = A(p1,T,f,bx,2,4,6)
+    A24_7 = A(p1,T,f,bx,2,4,7)
+    A24_8 = A(p1,T,f,bx,2,4,8)
+    A24_9 = A(p1,T,f,bx,2,4,9)
+    A24_10 = A(p1,T,f,bx,2,4,10)
+
+    integral12 = A12_1 + A12_2 + A12_3 + A12_4 + A12_5 + A12_6
+    integral24 = A24_1 + A24_2 + A24_3 + A24_4 + A24_5 + A24_6 + A24_7 + A24_8 + A24_9 + A24_10
+    integral = integral12 + integral24
+    
+    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
+        return 0
+    else:
+        net = coefficient*(integral[0]-integral[1])
+        return net
+
+
+@nb.jit(nopython=True, parallel=True)
+def driver(p_arr,T,f,bx):
+    bx = p_arr[1]-p_arr[0] #why do we do this immediately if we send boxsize as an argument?
+    output_arr = np.zeros(len(p_arr))
+    for i in nb.prange (1,len(p_arr)):
+        if p_arr[i]<.15791:
+            output_arr[i] = R11R21(p_arr[i],T,f,bx)
+        elif p_arr[i]<.18067:
+            output_arr[i] = R11R22(p_arr[i],T,f,bx)
+        elif p_arr[i]<.2555:
+            output_arr[i] = R11R23(p_arr[i],T,f,bx)
+        else:
+            output_arr[i] = R12R24(p_arr[i],T,f,bx)
+    return output_arr
+
+
+# In[8]:
 
 
 @nb.jit(nopython=True)
@@ -659,13 +1172,9 @@ def A8_11(p1,T,f,boxsize): #where p1 is the momentum of the incoming neutrino an
     return np.array([integralplus,integralminus])
 
 
-# $$\displaystyle  R_1^{(1)} = \frac{1}{2^4 (2\pi)^3 p_1^2}\left[\int_{m_e}^{E_{cut}^{(3)}} dE_2 \left[\int_{m_e}^{E_2}dE_3 F M_1^{(1)}\,  + \int_{E_2}^{E_{trans}^{(2)}}dE_3 F M_1^{(2)}\,  + \int_{E_{trans}^{(2)}}^{E_{lim}^{(1)}}dE_3 F M_1^{(3)}\, \right]\, \\ + \int_{E_{cut}^{(3)}}^{E_{cut}^{(1)}} dE_2 \left[\int_{m_e}^{E_{trans}^{(2)}}dE_3 F M_1^{(1)}\,  + \int_{E_{trans}^{(2)}}^{E_2}dE_3 F M_1^{(4)}\,  + \int_{E_2}^{E_{lim}^{(1)}}dE_3 F M_1^{(3)}\, \right] \\ + \int_{E_{cut}^{(1)}}^{\infty} dE_2 \left[\int_{E_{lim}^{(2)}}^{E_2}dE_3 F M_1^{(4)}\,  + \int_{E_2}^{E_{lim}^{(1)}}dE_3 F M_1^{(3)}\, \right]\, \right]$$
-
-# In[21]:
-
-
-
 # In[22]:
+
+
 @nb.jit(nopython=True)
 def B1_12(p1,E2,T,f,boxsize):
     #    p1_box = max(int(p1/boxsize),int(p1/boxsize+1e-10))
@@ -1062,12 +1571,6 @@ def A6_12(p1,T,f,boxsize): #where p1 is the momentum of the incoming neutrino an
         integralplus = integralplus + (np.e**x_values[i])*Bplus_array[i]*w_values[i]
         integralminus = integralminus + (np.e**x_values[i])*Bminus_array[i]*w_values[i]
     return np.array([integralplus,integralminus])
-
-
-# $$\displaystyle  R_1^{(2)} = \frac{1}{2^4 (2\pi)^3 p_1^2}\left[\int_{m_e}^{E_{cut}^{(3)}} dE_2 \left[\int_{m_e}^{E_2}dE_3 F M_1^{(1)}\,  + \int_{E_2}^{E_{trans}^{(2)}}dE_3 F M_1^{(2)}\,  + \int_{E_{trans}^{(2)}}^{E_{lim}^{(1)}}dE_3 F M_1^{(3)}\, \right]\, \\ + \int_{E_{cut}^{(3)}}^{\infty} dE_2 \left[\int_{m_e}^{E_{trans}^{(2}}dE_3 F M_1^{(1)}\,  + \int_{E_{trans}^{(2)}}^{E_2}dE_3 F M_1^{(4)}\,  + \int_{E_2}^{E_{lim}^{(1)}}dE_3 F M_1^{(3)}\, \right]\,\right]$$
-
-# In[28]:
-
 
 
 # In[29]:
@@ -1678,11 +2181,6 @@ def A10_21(p1,T,f,boxsize): #where p1 is the momentum of the incoming neutrino a
         integralplus = integralplus + (np.e**x_values[i])*Bplus_array[i]*w_values[i]
         integralminus = integralminus + (np.e**x_values[i])*Bminus_array[i]*w_values[i]
     return np.array([integralplus,integralminus]) 
-
-
-# In[39]:
-
-
 
 
 # In[40]:
@@ -2350,10 +2848,6 @@ def A11_22(p1,T,f,boxsize): #where p1 is the momentum of the incoming neutrino a
     return np.array([integralplus,integralminus]) 
 
 
-# In[51]:
-
-
-
 # In[52]:
 
 
@@ -3018,10 +3512,6 @@ def A11_23(p1,T,f,boxsize): #where p1 is the momentum of the incoming neutrino a
     return np.array([integralplus,integralminus])
 
 
-# In[63]:
-
-
-
 # In[64]:
 
 
@@ -3627,106 +4117,12 @@ def A10_24(p1,T,f,boxsize): #where p1 is the momentum of the incoming neutrino a
 
 # In[74]:
 
+
 @nb.jit(nopython=True)
-def R11(p1,T,f,boxsize):
+def R11R21_old(p1,T,f,boxsize):
     coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
-    integral = (A1_11(p1,T,f,boxsize)+A2_11(p1,T,f,boxsize)+A3_11(p1,T,f,boxsize)+A4_11(p1,T,f,boxsize)
+    integral11 = (A1_11(p1,T,f,boxsize)+A2_11(p1,T,f,boxsize)+A3_11(p1,T,f,boxsize)+A4_11(p1,T,f,boxsize)
                 +A5_11(p1,T,f,boxsize)+A6_11(p1,T,f,boxsize)+A7_11(p1,T,f,boxsize)+A8_11(p1,T,f,boxsize))
-    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
-        return 0
-    else:
-        return coefficient*(integral[0]-integral[1])
-
-@nb.jit(nopython=True)
-def R12(p1,T,f,boxsize):
-    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
-    integral = (A1_12(p1,T,f,boxsize)+A2_12(p1,T,f,boxsize)+A3_12(p1,T,f,boxsize)+A4_12(p1,T,f,boxsize)
-                +A5_12(p1,T,f,boxsize)+A6_12(p1,T,f,boxsize))
-    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
-        return 0
-    else:
-        return coefficient*(integral[0]-integral[1])
-
-@nb.jit(nopython=True)
-def R21(p1,T,f,boxsize):
-    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
-    integral = (A1_21(p1,T,f,boxsize)+A2_21(p1,T,f,boxsize)+A3_21(p1,T,f,boxsize)+A4_21(p1,T,f,boxsize)
-                +A5_21(p1,T,f,boxsize)+A6_21(p1,T,f,boxsize)+A7_21(p1,T,f,boxsize)+A8_21(p1,T,f,boxsize)
-                +A9_21(p1,T,f,boxsize)+A10_21(p1,T,f,boxsize))
-    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
-        return 0
-    else:
-        return coefficient*(integral[0]-integral[1])
-
-@nb.jit(nopython=True)
-def R22(p1,T,f,boxsize):
-    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
-    integral = (A1_22(p1,T,f,boxsize)+A2_22(p1,T,f,boxsize)+A3_22(p1,T,f,boxsize)+A4_22(p1,T,f,boxsize)
-                +A5_22(p1,T,f,boxsize)+A6_22(p1,T,f,boxsize)+A7_22(p1,T,f,boxsize)+A8_22(p1,T,f,boxsize)
-                +A9_22(p1,T,f,boxsize)+A10_22(p1,T,f,boxsize)+A11_22(p1,T,f,boxsize))
-    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
-        return 0
-    else:
-        return coefficient*(integral[0]-integral[1])
-
-@nb.jit(nopython=True)
-def R23(p1,T,f,boxsize):
-    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
-    integral = (A1_23(p1,T,f,boxsize)+A2_23(p1,T,f,boxsize)+A3_23(p1,T,f,boxsize)
-                +A4_23(p1,T,f,boxsize)+A5_23(p1,T,f,boxsize)+A6_23(p1,T,f,boxsize)
-                +A7_23(p1,T,f,boxsize)+A8_23(p1,T,f,boxsize)+A9_23(p1,T,f,boxsize)
-                +A10_23(p1,T,f,boxsize)+A11_23(p1,T,f,boxsize))
-    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
-        return 0
-    else:
-        return coefficient*(integral[0]-integral[1])
-
-
-
-@nb.jit(nopython=True)
-def R24(p1,T,f,boxsize):
-    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
-    integral = (A1_24(p1,T,f,boxsize)+A2_24(p1,T,f,boxsize)+A3_24(p1,T,f,boxsize)+A4_24(p1,T,f,boxsize)
-                +A5_24(p1,T,f,boxsize)+A6_24(p1,T,f,boxsize)+A7_24(p1,T,f,boxsize)+A8_24(p1,T,f,boxsize)
-                +A9_24(p1,T,f,boxsize)+A10_24(p1,T,f,boxsize))
-    if abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14:
-        return 0
-    else:
-        return coefficient*(integral[0]-integral[1])
-
-@nb.jit(nopython=True)
-def R11R21(p1,T,f,boxsize):
-    coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
-    a1 = A1_11(p1,T,f,boxsize)
-    a2 = A2_11(p1,T,f,boxsize)
-    a3 = A3_11(p1,T,f,boxsize)
-    a4 = A4_11(p1,T,f,boxsize)
-    a5 = A5_11(p1,T,f,boxsize)
-    a6 = A6_11(p1,T,f,boxsize)
-    a7 = A7_11(p1,T,f,boxsize)
-    a8 = A8_11(p1,T,f,boxsize)
-    integral11 = a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8
-    
-#    if a1[0] < 0 or a1[1] < 0:
-#        print('1',p1, a1[0], a1[1])
-#    if a2[0] < 0 or a2[1] < 0:
-#        print('2',p1, a2[0], a2[1])
-#    if a3[0] < 0 or a3[1] < 0:
-#        print('3',p1, a3[0], a3[1])
-#    if a4[0] < 0 or a4[1] < 0:
-#        print('4',p1, a4[0], a4[1])
-#    if a5[0] < 0 or a5[1] < 0:
-#        print('5',p1, a5[0], a5[1])
-#    if a6[0] < 0 or a6[1] < 0:
-#        print('6',p1, a6[0], a6[1])
-#    if a7[0] < 0 or a7[1] < 0:
-#        print('7',p1, a7[0], a7[1])
-#    if a8[0] < 0 or a8[1] < 0:
-#        print('8',p1, a8[0], a8[1])
-    
-    
-#    integral11 = (A1_11(p1,T,f,boxsize)+A2_11(p1,T,f,boxsize)+A3_11(p1,T,f,boxsize)+A4_11(p1,T,f,boxsize)
-#                +A5_11(p1,T,f,boxsize)+A6_11(p1,T,f,boxsize)+A7_11(p1,T,f,boxsize)+A8_11(p1,T,f,boxsize))
     integral21 = (A1_21(p1,T,f,boxsize)+A2_21(p1,T,f,boxsize)+A3_21(p1,T,f,boxsize)+A4_21(p1,T,f,boxsize)
                 +A5_21(p1,T,f,boxsize)+A6_21(p1,T,f,boxsize)+A7_21(p1,T,f,boxsize)+A8_21(p1,T,f,boxsize)
                 +A9_21(p1,T,f,boxsize)+A10_21(p1,T,f,boxsize))
@@ -3737,7 +4133,7 @@ def R11R21(p1,T,f,boxsize):
         return coefficient*(integral[0]-integral[1])
 
 @nb.jit(nopython=True)
-def R11R22(p1,T,f,boxsize):
+def R11R22_old(p1,T,f,boxsize):
     coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
     integral11 = (A1_11(p1,T,f,boxsize)+A2_11(p1,T,f,boxsize)+A3_11(p1,T,f,boxsize)+A4_11(p1,T,f,boxsize)
                   +A5_11(p1,T,f,boxsize)+A6_11(p1,T,f,boxsize)+A7_11(p1,T,f,boxsize)+A8_11(p1,T,f,boxsize))
@@ -3751,7 +4147,7 @@ def R11R22(p1,T,f,boxsize):
         return coefficient*(integral[0]-integral[1])
 
 @nb.jit(nopython=True)
-def R11R23(p1,T,f,boxsize):
+def R11R23_old(p1,T,f,boxsize):
     coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
     integral11 = (A1_11(p1,T,f,boxsize)+A2_11(p1,T,f,boxsize)+A3_11(p1,T,f,boxsize)+A4_11(p1,T,f,boxsize)
                   +A5_11(p1,T,f,boxsize)+A6_11(p1,T,f,boxsize)+A7_11(p1,T,f,boxsize)+A8_11(p1,T,f,boxsize))
@@ -3766,7 +4162,7 @@ def R11R23(p1,T,f,boxsize):
         return coefficient*(integral[0]-integral[1])
 
 @nb.jit(nopython=True)
-def R12R24(p1,T,f,boxsize):
+def R12R24_old(p1,T,f,boxsize):
     coefficient = 1/(2**4*(2*np.pi)**3*p1**2)
     integral12 = (A1_12(p1,T,f,boxsize)+A2_12(p1,T,f,boxsize)+A3_12(p1,T,f,boxsize)+A4_12(p1,T,f,boxsize)
                 +A5_12(p1,T,f,boxsize)+A6_12(p1,T,f,boxsize))
@@ -3782,33 +4178,18 @@ def R12R24(p1,T,f,boxsize):
 
 
 @nb.jit(nopython=True, parallel=True)
-def driver(p_array,T,f,boxsize):
+def driver_old(p_array,T,f,boxsize):
     boxsize = p_array[1]-p_array[0]
     output_array = np.zeros(len(p_array))
     for i in nb.prange (1,len(p_array)):
         #    for i in nb.prange (1,len(p_array)):
         if p_array[i]<.15791:
-            output_array[i] = R11R21(p_array[i],T,f,boxsize)
+            output_array[i] = R11R21_old(p_array[i],T,f,boxsize)
         elif p_array[i]<.18067:
-            output_array[i] = R11R22(p_array[i],T,f,boxsize)
+            output_array[i] = R11R22_old(p_array[i],T,f,boxsize)
         elif p_array[i]<.2555:
-            output_array[i] = R11R23(p_array[i],T,f,boxsize)
+            output_array[i] = R11R23_old(p_array[i],T,f,boxsize)
         else:
-            output_array[i] = R12R24(p_array[i],T,f,boxsize)
-    return output_array
-
-@nb.jit(nopython=True, parallel=True)
-def driver_old(p_array,T,f,boxsize):
-    boxsize = p_array[1]-p_array[0]
-    output_array = np.zeros(len(p_array))
-    for i in nb.prange (1,len(p_array)):
-        if p_array[i]<.15791:
-            output_array[i] = R11(p_array[i],T,f,boxsize)+R21(p_array[i],T,f,boxsize)
-        elif p_array[i]<.18067:
-            output_array[i] = R11(p_array[i],T,f,boxsize)+R22(p_array[i],T,f,boxsize)
-        elif p_array[i]<.2555:
-            output_array[i] = R11(p_array[i],T,f,boxsize)+R23(p_array[i],T,f,boxsize)
-        else:
-            output_array[i] = R12(p_array[i],T,f,boxsize)+R24(p_array[i],T,f,boxsize)
+            output_array[i] = R12R24_old(p_array[i],T,f,boxsize)
     return output_array
 
