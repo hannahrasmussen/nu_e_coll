@@ -108,14 +108,12 @@ def Blim(p1,E,q,T,f,bx,sub,sup,n):
     
     if (sub==1): #it so happens that for R_1, only n matters for B limits, not superscript
         if ((2*p1 + E + q)==0):
-            E1lim = T*100
+            E1lim = inf
         else:
-            #E1lim = min((1/2)*(2*p1 + E + q + (me**2)/(2*p1 + E + q)),T*100)
             E1lim = (1/2)*(2*p1 + E + q + (me**2)/(2*p1 + E + q))
         if ((2*p1 + E - q)==0):
-            E2trans = T*100
+            E2trans = inf
         else:
-            #E2trans = min((1/2)*(2*p1 + E - q + (me**2)/(2*p1 + E - q)),T*100)
             E2trans = (1/2)*(2*p1 + E - q + (me**2)/(2*p1 + E - q))
         E2lim = E2trans
         if (n==1):
@@ -145,14 +143,12 @@ def Blim(p1,E,q,T,f,bx,sub,sup,n):
     
     else: #sub=2
         if ((E - q - 2*p1)==0):
-            E1lim = T*100
+            E1lim = inf
         else:
-            #E1lim = min((1/2)*(E - q - 2*p1 + (me**2)/(E - q - 2*p1)),T*100)
             E1lim = (1/2)*(E - q - 2*p1 + (me**2)/(E - q - 2*p1))
         if (E + q - 2*p1)==0:
-            E2trans = T*100
+            E2trans = inf
         else:
-            #E2trans = min((1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1)),T*100)
             E2trans = (1/2)*(E + q - 2*p1 + (me**2)/(E + q - 2*p1))
         E2lim = E2trans
         if (n==1):
@@ -239,7 +235,7 @@ def Blim(p1,E,q,T,f,bx,sub,sup,n):
         else: #n=11
             UL = bx*len(f)
             LL = E
-
+        
     return UL, LL
 
 
@@ -353,7 +349,7 @@ def M(p1,E_arr,q_arr,E_val,q_val,sub,sup,n):
         elif (((sup==1) and ((n==3) or (n==6) or (n==8) or (n==10))) or (((sup==2) or (sup==3)) and ((n==3) or (n==6) or (n==9) or (n==11))) or ((sup==4) and ((n==5) or (n==8) or (n==10)))):
             for i in range (len(E_arr)):
                 M_arr[i] = M23(p1,E_arr[i],q_arr[i],E_val,q_val)
-        else: # (((sup==1) and ((n==50 or (n==7) or (n==9))) or ((sup==2) and ((n==5) or (n==8) or (n==10))) or ((sup==3) and ((n==8) or (n==10))) or ((sup==4) and ((n==7) or (n==9))))
+        else: # (((sup==1) and ((n==5 or (n==7) or (n==9))) or ((sup==2) and ((n==5) or (n==8) or (n==10))) or ((sup==3) and ((n==8) or (n==10))) or ((sup==4) and ((n==7) or (n==9))))
             for i in range (len(E_arr)):
                 M_arr[i] = M24(p1,E_arr[i],q_arr[i],E_val,q_val)
 
@@ -375,14 +371,16 @@ def B(p1,E_val,T,f,bx,sub,sup,n): #E_val can be either E3 or E2 depending on if 
     if (sub==1):
         UI = max(int((p1+E_val-LL)/bx),int((p1+E_val-LL)/bx+1e-9)) 
         LI = max(int((p1+E_val-UL)/bx),int((p1+E_val-UL)/bx+1e-9))
-        len_p4 = UI - LI + 2
+        if (UI<0 or LI<0):
+            return 0,0
+        len_p4 = min(UI - LI + 2, 2*len(f))
         p4_arr = np.zeros(len_p4)
         Fp_arr = np.zeros(len(p4_arr))
         Fm_arr = np.zeros(len(p4_arr))
         for i in range(len_p4-2):
             p4_arr[i+1] = (LI+i+1)*bx 
         p4_arr[0] = p1 + E_val - UL 
-        p4_arr[-1] = p1 + E_val - LL 
+        p4_arr[-1] = p1 + E_val - LL
         E_arr = E_val + p1 - p4_arr
         q_arr = make_q_array(E_arr)
         M_arr = M(p1,E_arr,q_arr,E_val,q_val,sub,sup,n)
@@ -404,7 +402,9 @@ def B(p1,E_val,T,f,bx,sub,sup,n): #E_val can be either E3 or E2 depending on if 
     else: #sub==2
         UI = max(int((p1+UL-E_val)/bx),int((p1+UL-E_val)/bx+1e-9))
         LI = max(int((p1+LL-E_val)/bx),int((p1+LL-E_val)/bx+1e-9))
-        len_p4 = UI - LI + 2
+        if (UI<0 or LI<0):
+            return 0,0
+        len_p4 = min(UI - LI + 2, 2*len(f))
         p4_arr = np.zeros(len_p4)
         Fp_arr = np.zeros(len(p4_arr))
         Fm_arr = np.zeros(len(p4_arr))
@@ -491,7 +491,9 @@ def R11R21(p1,T,f,bx):
     integral21 = A21_1 + A21_2 + A21_3 + A21_4 + A21_5 + A21_6 + A21_7 + A21_8 + A21_9 + A21_10
     integral = integral11 + integral21
     
-    if (abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14):
+    if (integral[0]==0 and integral[1]==0):
+        return 0
+    elif (abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14):
         return 0
     else:
         net = coefficient*(integral[0]-integral[1])
@@ -526,7 +528,9 @@ def R11R22(p1,T,f,bx):
     integral22 = A22_1 + A22_2 + A22_3 + A22_4 + A22_5 + A22_6 + A22_7 + A22_8 + A22_9 + A22_10 + A22_11
     integral = integral11 + integral22
     
-    if (abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14):
+    if (integral[0]==0 and integral[1]==0):
+        return 0
+    elif (abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14):
         return 0
     else:
         net = coefficient*(integral[0]-integral[1])
@@ -561,7 +565,9 @@ def R11R23(p1,T,f,bx):
     integral23 = A23_1 + A23_2 + A23_3 + A23_4 + A23_5 + A23_6 + A23_7 + A23_8 + A23_9 + A23_10 + A23_11
     integral = integral11 + integral23
     
-    if (abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14):
+    if (integral[0]==0 and integral[1]==0):
+        return 0
+    elif (abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14):
         return 0
     else:
         net = coefficient*(integral[0]-integral[1])
@@ -593,12 +599,13 @@ def R12R24(p1,T,f,bx):
     integral24 = A24_1 + A24_2 + A24_3 + A24_4 + A24_5 + A24_6 + A24_7 + A24_8 + A24_9 + A24_10
     integral = integral12 + integral24
     
-    if (abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14):
+    if (integral[0]==0 and integral[1]==0):
+        return 0
+    elif (abs((integral[0]-integral[1])/(integral[0]+integral[1]))<10**-14):
         return 0
     else:
         net = coefficient*(integral[0]-integral[1])
         return net
-
 
 @nb.jit(nopython=True, parallel=True)
 def driver(p_arr,T,f,bx):
