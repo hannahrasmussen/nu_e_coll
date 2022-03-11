@@ -621,3 +621,18 @@ def driver(p_arr,T,f,bx):
         else:
             output_arr[i] = R12R24(p_arr[i],T,f,bx)
     return output_arr
+
+@nb.jit(nopython=True, parallel=True)
+def driver_short(p_arr,T,f,bx):
+    bx = p_arr[1]-p_arr[0] #why do we do this immediately if we send boxsize as an argument?
+    output_arr = np.zeros(len(p_arr))
+    for i in nb.prange (1,len(p_arr)//2):
+        if (p_arr[i]<.15791):
+            output_arr[i] = R11R21(p_arr[i],T,f,bx)
+        elif (p_arr[i]<.18067):
+            output_arr[i] = R11R22(p_arr[i],T,f,bx)
+        elif (p_arr[i]<.2555):
+            output_arr[i] = R11R23(p_arr[i],T,f,bx)
+        else:
+            output_arr[i] = R12R24(p_arr[i],T,f,bx)
+    return output_arr
